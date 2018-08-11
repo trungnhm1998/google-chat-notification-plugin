@@ -33,7 +33,7 @@ public class CommonUtil {
         this.ws = ws;
     }
 
-    public Boolean sendNotification(String json) {
+    public boolean sendNotification(String json) {
 
         String[] urlDetails = googleChatNotification.getUrl().split(",");
         Response response = null;
@@ -83,50 +83,57 @@ public class CommonUtil {
     }
 
     public boolean checkWhetherToSend(Run build) {
+
         boolean result = false;
 
-        if(googleChatNotification != null && build != null && build.getResult() != null) {
-            if(googleChatNotification.isNotifyAborted()
-                    && Result.ABORTED.toString().equalsIgnoreCase(build.getResult().toString())) {
-
-                result = true;
-
-            } else if(googleChatNotification.isNotifyBackToNormal()
-                    && ( ( Result.ABORTED.toString().equalsIgnoreCase(build.getPreviousBuild().getResult().toString())
-                    || Result.FAILURE.toString().equalsIgnoreCase(build.getPreviousBuild().getResult().toString())
-                    || Result.UNSTABLE.toString().equalsIgnoreCase(build.getPreviousBuild().getResult().toString())
-                    || Result.NOT_BUILT.toString().equalsIgnoreCase(build.getPreviousBuild().getResult().toString())
-            ) && Result.SUCCESS.toString().equalsIgnoreCase(build.getResult().toString())
-            )
-                    ) {
-
-                result = true;
-
-            } else if(googleChatNotification.isNotifyFailure()
-                    && Result.FAILURE.toString().equalsIgnoreCase(build.getResult().toString())) {
-
-                result = true;
-
-            } else if(googleChatNotification.isNotifyNotBuilt()
-                    && Result.NOT_BUILT.toString().equalsIgnoreCase(build.getResult().toString())) {
-
-                result = true;
-            } else if(googleChatNotification.isNotifySuccess()
-                    && Result.SUCCESS.toString().equalsIgnoreCase(build.getResult().toString())) {
-
-                result = true;
-
-            } else if(googleChatNotification.isNotifyUnstable()
-                    && Result.UNSTABLE.toString().equalsIgnoreCase(build.getResult().toString())) {
-
-                result = true;
-            }
+        if(build == null || build.getResult() == null || googleChatNotification == null) {
+            return result;
         }
+
+        Run prevRun = build.getPreviousBuild();
+        Result previousResult = (prevRun != null) ? prevRun.getResult() : Result.SUCCESS;
+
+        if(googleChatNotification.isNotifyAborted()
+                && Result.ABORTED == build.getResult()) {
+
+            result = true;
+
+        } else if(googleChatNotification.isNotifyFailure()
+                && Result.FAILURE == build.getResult()) {
+
+            result = true;
+
+        } else if(googleChatNotification.isNotifyNotBuilt()
+                && Result.NOT_BUILT == build.getResult()) {
+
+            result = true;
+
+        } else if(googleChatNotification.isNotifySuccess()
+                && Result.SUCCESS == build.getResult()) {
+
+            result = true;
+
+        } else if(googleChatNotification.isNotifyUnstable()
+                && Result.UNSTABLE == build.getResult()) {
+
+            result = true;
+
+        } else if(googleChatNotification.isNotifyBackToNormal() && Result.SUCCESS == build.getResult()
+                    && (   Result.ABORTED == previousResult
+                        || Result.FAILURE == previousResult
+                        || Result.UNSTABLE == previousResult
+                        || Result.NOT_BUILT == previousResult) ) {
+
+            result = true;
+
+        }
+
         return result;
     }
 
     public boolean checkPipelineFlag(Run build) {
-        if(!googleChatNotification.isNotifyAborted() &&
+        if(googleChatNotification != null &&
+                !googleChatNotification.isNotifyAborted() &&
                 !googleChatNotification.isNotifyBackToNormal() &&
                 !googleChatNotification.isNotifyFailure() &&
                 !googleChatNotification.isNotifyNotBuilt() &&
