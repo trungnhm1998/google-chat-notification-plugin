@@ -85,42 +85,47 @@ public class CommonUtil {
     public boolean checkWhetherToSend(Run build) {
         boolean result = false;
 
-        if(build != null && build.getResult() != null) {
-            if(googleChatNotification.isNotifyAborted()
-                    && Result.ABORTED.toString().equalsIgnoreCase(build.getResult().toString())) {
+        if(googleChatNotification.isNotifyAborted()
+                && build != null && build.getResult() != null
+                && Result.ABORTED.toString().equalsIgnoreCase(build.getResult().toString())) {
 
                 result = true;
 
-            } else if(googleChatNotification.isNotifyBackToNormal()
-                    && ( ( Result.ABORTED.toString().equalsIgnoreCase(build.getPreviousBuild().getResult().toString())
-                    || Result.FAILURE.toString().equalsIgnoreCase(build.getPreviousBuild().getResult().toString())
-                    || Result.UNSTABLE.toString().equalsIgnoreCase(build.getPreviousBuild().getResult().toString())
-                    || Result.NOT_BUILT.toString().equalsIgnoreCase(build.getPreviousBuild().getResult().toString())
-            ) && Result.SUCCESS.toString().equalsIgnoreCase(build.getResult().toString())
-            )
-                    ) {
+        } else if( googleChatNotification.isNotifyBackToNormal()
+                && build != null && build.getPreviousBuild() != null && build.getPreviousBuild().getResult() != null
+                && build.getResult() != null
+                && ( ( Result.ABORTED.toString().equalsIgnoreCase(build.getPreviousBuild().getResult().toString())
+                || Result.FAILURE.toString().equalsIgnoreCase(build.getPreviousBuild().getResult().toString())
+                || Result.UNSTABLE.toString().equalsIgnoreCase(build.getPreviousBuild().getResult().toString())
+                || Result.NOT_BUILT.toString().equalsIgnoreCase(build.getPreviousBuild().getResult().toString())
+                      ) && Result.SUCCESS.toString().equalsIgnoreCase(build.getResult().toString())
+                   )
+        ) {
 
-                result = true;
+            result = true;
 
-            } else if(googleChatNotification.isNotifyFailure()
-                    && Result.FAILURE.toString().equalsIgnoreCase(build.getResult().toString())) {
+        } else if(googleChatNotification.isNotifyFailure()
+                && build != null && build.getResult() != null
+                && Result.FAILURE.toString().equalsIgnoreCase(build.getResult().toString())) {
 
-                result = true;
+            result = true;
 
-            } else if(googleChatNotification.isNotifyNotBuilt()
-                    && Result.NOT_BUILT.toString().equalsIgnoreCase(build.getResult().toString())) {
+        } else if(googleChatNotification.isNotifyNotBuilt()
+                && build != null && build.getResult() != null
+                && Result.NOT_BUILT.toString().equalsIgnoreCase(build.getResult().toString())) {
 
-                result = true;
-            } else if(googleChatNotification.isNotifySuccess()
-                    && Result.SUCCESS.toString().equalsIgnoreCase(build.getResult().toString())) {
+            result = true;
+        } else if(googleChatNotification.isNotifySuccess()
+                && build != null && build.getResult() != null
+                && Result.SUCCESS.toString().equalsIgnoreCase(build.getResult().toString())) {
 
-                result = true;
+            result = true;
 
-            } else if(googleChatNotification.isNotifyUnstable()
-                    && Result.UNSTABLE.toString().equalsIgnoreCase(build.getResult().toString())) {
+        } else if(googleChatNotification.isNotifyUnstable()
+                && build != null && build.getResult() != null
+                && Result.UNSTABLE.toString().equalsIgnoreCase(build.getResult().toString())) {
 
-                result = true;
-            }
+            result = true;
         }
         return result;
     }
