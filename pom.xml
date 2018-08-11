@@ -16,7 +16,7 @@
     </properties>
     <name>Google Chat Notification</name>
     <description>Google Chat Notification for build status</description>
-    <url>https://wiki.jenkins-ci.org/display/JENKINS/Google-Chat-Notification</url>
+    <url>https://wiki.jenkins-ci.org/display/JENKINS/Google+Chat+Notification+Plugin</url>
     <licenses>
         <license>
             <name>MIT License</name>
@@ -31,9 +31,9 @@
 
     <developers>
         <developer>
-            <id>chirag.naik.ec@gmail.com</id>
+            <id>cnaik</id>
             <name>Chirag Naik</name>
-            <organization>Vuclip Inc.</organization>
+            <email>chirag.naik.ec@gmail.com</email>
         </developer>
     </developers>
 
