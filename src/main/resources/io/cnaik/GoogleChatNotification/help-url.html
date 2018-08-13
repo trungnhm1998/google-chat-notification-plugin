@@ -1,3 +1,10 @@
 <div>
-    A list of comma separated URLs to send build notifications to Google Chat Groups/Users.
+    Single/multiple comma separated HTTPS URLs or/and single/multiple comma separated Credential IDs to send build notifications to Google Chat rooms.<br/>
+    To use Credential ID as URL identifier configure entire URL as secret in credential. Use id:credential_id as value in URL.<br/>
+    Different Ways to define:<br/>
+    1) https://chat.googleapis.com/v1/spaces/room_id/messages?key=key_id&token=token_id<br/>
+    2) https://chat.googleapis.com/v1/spaces/room_id/messages?key=key_id&token=token_id, https://chat.googleapis.com/v1/spaces/room_id2/messages?key=key_id2&token=token_id2<br/>
+    3) id:credential_id_for_room1<br/>
+    4) id:credential_id_for_room1, id:credential_id_for_room2<br/>
+    5) https://chat.googleapis.com/v1/spaces/room_id/messages?key=key_id&token=token_id, id:credential_id_for_room2<br/>
 </div>

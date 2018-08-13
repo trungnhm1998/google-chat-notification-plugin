@@ -44,7 +44,7 @@ public class GoogleChatNotification extends Recorder implements SimpleBuildStep 
     @Override
     public boolean perform(AbstractBuild build, Launcher launcher, BuildListener listener) {
         CommonUtil commonUtil = new CommonUtil(this, listener, null);
-        performAction(build, commonUtil.checkWhetherToSend(build), commonUtil);
+        performAction(build, commonUtil.checkPipelineFlag(build), commonUtil);
         return true;
     }
 

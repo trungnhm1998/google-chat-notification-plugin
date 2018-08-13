@@ -8,11 +8,8 @@ import io.cnaik.GoogleChatNotification;
 import io.restassured.http.ContentType;
 import io.restassured.response.Response;
 import org.apache.commons.lang3.StringUtils;
-import org.apache.http.HttpStatus;
+import org.jenkinsci.plugins.plaincredentials.StringCredentials;
 import org.jenkinsci.plugins.tokenmacro.TokenMacro;
-
-import java.util.logging.Level;
-import java.util.logging.Logger;
 
 import static io.restassured.RestAssured.given;
 import static io.restassured.RestAssured.with;
@@ -23,8 +20,6 @@ public class CommonUtil {
     private TaskListener taskListener;
     private FilePath ws;
 
-    private final static Logger LOGGER = Logger.getLogger(CommonUtil.class.getName());
-
     public CommonUtil(GoogleChatNotification googleChatNotification,
                       TaskListener taskListener,
                       FilePath ws) {
@@ -33,26 +28,40 @@ public class CommonUtil {
         this.ws = ws;
     }
 
-    public boolean sendNotification(String json) {
+    public void sendNotification(String json) {
 
         String[] urlDetails = googleChatNotification.getUrl().split(",");
         Response response = null;
+        String[] url;
 
         for(String urlDetail: urlDetails) {
 
-            String[] url = urlDetail.split("\\?");
+            response = call(urlDetail, json);
 
-            response = given(with().baseUri(url[0])).contentType(ContentType.JSON).queryParam(url[1]).urlEncodingEnabled(false).body(json).log()
-                    .all().post();
+            if (response == null
+                    && StringUtils.isNotEmpty(urlDetail)
+                    && urlDetail.trim().startsWith("id:")) {
+
+                url = urlDetail.trim().split("id:");
+
+                CredentialUtil credentialUtil = new CredentialUtil();
+                StringCredentials stringCredentials = credentialUtil.lookupCredentials(url[1]);
+
+                if (stringCredentials != null
+                        && stringCredentials.getSecret() != null) {
+
+                    response = call(stringCredentials.getSecret().getPlainText(), json);
+                }
+            }
+
+            if (taskListener != null) {
+                if(response == null) {
+                    taskListener.getLogger().println("Invalid Google Chat Notification URL found: " + urlDetail);
+                } else {
+                    taskListener.getLogger().println("Chat Notification Response: " + response.print());
+                }
+            }
         }
-
-        LOGGER.log(Level.INFO, "Chat Notification Response: " + response.print());
-
-        if(taskListener != null) {
-            taskListener.getLogger().println("Chat Notification Response: " + response.print());
-        }
-
-        return response.statusCode() == HttpStatus.SC_OK ? true : false;
     }
 
     public String formResultJSON(Run build) {
@@ -155,5 +164,29 @@ public class CommonUtil {
         }
 
         return output;
+    }
+
+    private boolean checkIfValidURL(String url) {
+        return (StringUtils.isNotEmpty(url)
+                && url.trim().contains("https")
+                && url.trim().contains("?"));
+    }
+
+    private String[] splitURLOnQuestionMark(String url) {
+        return url.trim().split("\\?");
+    }
+
+    private Response call(String urlDetail, String json) {
+
+        if (checkIfValidURL(urlDetail)) {
+
+            String[] url = splitURLOnQuestionMark(urlDetail);
+
+            return given(with().baseUri(url[0]))
+                    .contentType(ContentType.JSON).queryParam(url[1])
+                    .urlEncodingEnabled(false).body(json).log()
+                    .all().post();
+        }
+        return null;
     }
 }
