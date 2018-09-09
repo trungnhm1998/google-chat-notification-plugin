@@ -1,45 +1,74 @@
 package io.cnaik.service;
 
 import hudson.FilePath;
+import hudson.ProxyConfiguration;
 import hudson.model.Result;
 import hudson.model.Run;
 import hudson.model.TaskListener;
 import io.cnaik.GoogleChatNotification;
-import io.restassured.http.ContentType;
-import io.restassured.response.Response;
+import jenkins.model.Jenkins;
 import org.apache.commons.lang3.StringUtils;
+import org.apache.http.HttpEntity;
+import org.apache.http.HttpHost;
+import org.apache.http.HttpStatus;
+import org.apache.http.auth.AuthScope;
+import org.apache.http.auth.UsernamePasswordCredentials;
+import org.apache.http.client.CredentialsProvider;
+import org.apache.http.client.methods.CloseableHttpResponse;
+import org.apache.http.client.methods.HttpPost;
+import org.apache.http.conn.routing.HttpRoutePlanner;
+import org.apache.http.entity.StringEntity;
+import org.apache.http.impl.client.BasicCredentialsProvider;
+import org.apache.http.impl.client.CloseableHttpClient;
+import org.apache.http.impl.client.HttpClientBuilder;
+import org.apache.http.impl.client.HttpClients;
+import org.apache.http.impl.conn.DefaultProxyRoutePlanner;
+import org.apache.http.util.EntityUtils;
 import org.jenkinsci.plugins.plaincredentials.StringCredentials;
 import org.jenkinsci.plugins.tokenmacro.TokenMacro;
 
-import static io.restassured.RestAssured.given;
-import static io.restassured.RestAssured.with;
+import java.io.IOException;
 
 public class CommonUtil {
 
     private GoogleChatNotification googleChatNotification;
     private TaskListener taskListener;
     private FilePath ws;
+    private Run build;
+    private LogUtil logUtil;
 
     public CommonUtil(GoogleChatNotification googleChatNotification,
                       TaskListener taskListener,
-                      FilePath ws) {
+                      FilePath ws, Run build, LogUtil logUtil) {
         this.googleChatNotification = googleChatNotification;
         this.taskListener = taskListener;
         this.ws = ws;
+        this.build = build;
+        this.logUtil = logUtil;
     }
 
-    public void sendNotification(String json) {
+    public void sendNotification() {
 
+        boolean sendNotificationFlag = checkPipelineFlag();
+
+        if (printLogEnabled()) {
+            logUtil.printLog("Send Google Chat Notification condition is : " + sendNotificationFlag);
+        }
+
+        if(!sendNotificationFlag) {
+            return;
+        }
+
+        String json = formResultJSON();
         String[] urlDetails = googleChatNotification.getUrl().split(",");
-        Response response = null;
+        boolean response;
         String[] url;
 
         for(String urlDetail: urlDetails) {
 
             response = call(urlDetail, json);
 
-            if (response == null
-                    && StringUtils.isNotEmpty(urlDetail)
+            if (!response && StringUtils.isNotEmpty(urlDetail)
                     && urlDetail.trim().startsWith("id:")) {
 
                 url = urlDetail.trim().split("id:");
@@ -54,23 +83,19 @@ public class CommonUtil {
                 }
             }
 
-            if (taskListener != null) {
-                if(response == null) {
-                    taskListener.getLogger().println("Invalid Google Chat Notification URL found: " + urlDetail);
-                } else {
-                    taskListener.getLogger().println("Chat Notification Response: " + response.print());
-                }
+            if (!response) {
+                logUtil.printLog("Invalid Google Chat Notification URL found: " + urlDetail);
             }
         }
     }
 
-    public String formResultJSON(Run build) {
+    private String formResultJSON() {
 
-        String defaultMessage = escapeSpecialCharacter(replaceJenkinsKeywords(googleChatNotification.getMessage(), build));
+        String defaultMessage = escapeSpecialCharacter(replaceJenkinsKeywords(googleChatNotification.getMessage()));
         return "{ 'text': '" + defaultMessage + "'}";
     }
 
-    public String replaceJenkinsKeywords(String inputString, Run build) {
+    private String replaceJenkinsKeywords(String inputString) {
 
         if(StringUtils.isEmpty(inputString)) {
             return inputString;
@@ -78,20 +103,17 @@ public class CommonUtil {
 
         try {
 
-            if(taskListener != null) {
-                taskListener.getLogger().println("ws: " + ws + " , build: " + build);
-            }
-
             return TokenMacro.expandAll(build, ws, taskListener, inputString, false, null);
+
         } catch (Exception e) {
-            if(taskListener != null) {
-                taskListener.getLogger().println("Exception in Token Macro expansion: " + e);
+            if(printLogEnabled()) {
+                logUtil.printLog("Exception in Token Macro expansion: " + e);
             }
         }
         return inputString;
     }
 
-    public boolean checkWhetherToSend(Run build) {
+    private boolean checkWhetherToSend() {
 
         boolean result = false;
 
@@ -128,10 +150,10 @@ public class CommonUtil {
             result = true;
 
         } else if(googleChatNotification.isNotifyBackToNormal() && Result.SUCCESS == build.getResult()
-                    && (   Result.ABORTED == previousResult
-                        || Result.FAILURE == previousResult
-                        || Result.UNSTABLE == previousResult
-                        || Result.NOT_BUILT == previousResult) ) {
+                && (   Result.ABORTED == previousResult
+                || Result.FAILURE == previousResult
+                || Result.UNSTABLE == previousResult
+                || Result.NOT_BUILT == previousResult) ) {
 
             result = true;
 
@@ -140,7 +162,8 @@ public class CommonUtil {
         return result;
     }
 
-    public boolean checkPipelineFlag(Run build) {
+    private boolean checkPipelineFlag() {
+
         if(googleChatNotification != null &&
                 !googleChatNotification.isNotifyAborted() &&
                 !googleChatNotification.isNotifyBackToNormal() &&
@@ -150,10 +173,10 @@ public class CommonUtil {
                 !googleChatNotification.isNotifyUnstable()) {
             return true;
         }
-        return checkWhetherToSend(build);
+        return checkWhetherToSend();
     }
 
-    public String escapeSpecialCharacter(String input) {
+    private String escapeSpecialCharacter(String input) {
 
         String output = input;
 
@@ -172,21 +195,70 @@ public class CommonUtil {
                 && url.trim().contains("?"));
     }
 
-    private String[] splitURLOnQuestionMark(String url) {
-        return url.trim().split("\\?");
-    }
-
-    private Response call(String urlDetail, String json) {
+    private boolean call(String urlDetail, String json) {
 
         if (checkIfValidURL(urlDetail)) {
+            try {
 
-            String[] url = splitURLOnQuestionMark(urlDetail);
+                HttpPost post = new HttpPost(urlDetail);
+                StringEntity stringEntity = new StringEntity(json);
+                post.setEntity(stringEntity);
+                post.setHeader("Content-type", "application/json");
+                CloseableHttpClient client = getHttpClient();
+                CloseableHttpResponse response = client.execute(post);
 
-            return given(with().baseUri(url[0]))
-                    .contentType(ContentType.JSON).queryParam(url[1])
-                    .urlEncodingEnabled(false).body(json).log()
-                    .all().post();
+                int responseCode = response.getStatusLine().getStatusCode();
+                if(responseCode != HttpStatus.SC_OK) {
+                    HttpEntity entity = response.getEntity();
+                    String responseString = EntityUtils.toString(entity);
+
+                    if(printLogEnabled()) {
+                        logUtil.printLog("Google Chat post may have failed. Response: " + responseString + " , Response Code: " + responseCode);
+                    }
+                }
+
+            } catch (IOException e) {
+                if(printLogEnabled()) {
+                    logUtil.printLog("Exception while posting Google Chat message: " + e.getMessage());
+                }
+            }
+            return true;
         }
-        return null;
+        return false;
+    }
+
+    private CloseableHttpClient getHttpClient() {
+
+        final HttpClientBuilder clientBuilder = HttpClients.custom();
+        final CredentialsProvider credentialsProvider = new BasicCredentialsProvider();
+        clientBuilder.setDefaultCredentialsProvider(credentialsProvider);
+
+        if (Jenkins.getInstance() != null) {
+            ProxyConfiguration proxy = Jenkins.getInstance().proxy;
+            if (proxy != null) {
+                final HttpHost proxyHost = new HttpHost(proxy.name, proxy.port);
+                final HttpRoutePlanner routePlanner = new DefaultProxyRoutePlanner(proxyHost);
+                clientBuilder.setRoutePlanner(routePlanner);
+
+                String username = proxy.getUserName();
+                String password = proxy.getPassword();
+                // Consider it to be passed if username specified. Sufficient?
+
+                if(printLogEnabled()) {
+                    logUtil.printLog("Using proxy authentication (user=" + username + "), (host=" + proxy.name + "), (port=" + proxy.port + ")");
+                }
+
+                if (username != null && !"".equals(username.trim())) {
+                    credentialsProvider.setCredentials(new AuthScope(proxyHost),
+                            new UsernamePasswordCredentials(username, password));
+                }
+            }
+        }
+
+        return clientBuilder.build();
+    }
+
+    public boolean printLogEnabled() {
+        return (logUtil != null && !googleChatNotification.isSuppressInfoLoggers());
     }
 }

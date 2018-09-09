@@ -1,8 +1,9 @@
 # google-chat-notification-jenkins-plugin
 
-Google Chat Notification Jenkins Plugin to send build status to Google Chat https://chat.google.com/
+Google Chat Notification Jenkins Plugin to send build status to [Google Chat](https://chat.google.com)
 
 This Jenkins plugin allows you to send Google Chat notification as a post build action or as a pipeline script.
+This plugin is supported for Jenkins version **2.60.3 or higher**.
 
 
 ## Prerequisites
@@ -77,6 +78,10 @@ Use below command
 8. **notifyBackToNormal**
    - This is an optional boolean parameter. Default value is false.
    - Notification message to be sent when build status is SUCCESS and previous build status was not SUCCESS.
+
+9. **suppressInfoLoggers**
+   - This is an optional boolean parameter. Default value is false.
+   - Suppress all info loggers in Jenkins build.
 
 
 ## Default behaviour of plugin is to send notifications for all build status unless overridden with true value for above defined build statuses.

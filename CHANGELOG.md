@@ -1,3 +1,14 @@
+# 1.2 release notes
+
+### From this version onwards, plugin is only supported for Jenkins version 2.60.3 or higher.
+
+New Features:
+
+- Add support to send notifications if proxy configuration defined [#1](https://github.com/jenkinsci/google-chat-notification-plugin/issues/1)
+- Suppress Info logs [#3](https://github.com/jenkinsci/google-chat-notification-plugin/issues/3).
+- Removed deprecated libraries of Jenkins and replaced with newer versions. As a result of this version of plugin is only supported for Jenkins version 2.60.3 or higher.
+
+
 # 1.1 release notes
 
 New Features:
