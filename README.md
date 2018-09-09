@@ -31,7 +31,7 @@ This plugin is supported for Jenkins version **2.60.3 or higher**.
 ## How to use it in pipeline script
 
 Use below command
-### googlechatnotification url: 'web hook(s) URL(s)', message: 'message to be sent', notifyAborted: 'true', notifyFailure: 'true', notifyNotBuilt: 'true', notifySuccess: 'true', notifyUnstable: 'true', notifyBackToNormal: 'true'
+### googlechatnotification url: 'web hook(s) URL(s)', message: 'message to be sent', notifyAborted: 'true', notifyFailure: 'true', notifyNotBuilt: 'true', notifySuccess: 'true', notifyUnstable: 'true', notifyBackToNormal: 'true', suppressInfoLoggers: 'true'
 
 
 ## Please find explanations for each fields as below, usage for all fields remains same for build job and pipeline:
