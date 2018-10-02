@@ -11,6 +11,7 @@ import hudson.tasks.Publisher;
 import hudson.util.FormValidation;
 import io.cnaik.service.CommonUtil;
 import io.cnaik.service.LogUtil;
+import io.cnaik.service.ResponseMessageUtil;
 import jenkins.tasks.SimpleBuildStep;
 import net.sf.json.JSONObject;
 import org.jenkinsci.Symbol;
@@ -34,6 +35,13 @@ public class GoogleChatNotification extends Notifier implements SimpleBuildStep 
     private boolean notifyUnstable;
     private boolean notifyBackToNormal;
     private boolean suppressInfoLoggers;
+    private boolean sameThreadNotification;
+
+    private TaskListener taskListener;
+    private FilePath ws;
+    private Run build;
+    private LogUtil logUtil;
+    private ResponseMessageUtil responseMessageUtil;
 
     @DataBoundConstructor
     public GoogleChatNotification(String url, String message) {
@@ -74,6 +82,11 @@ public class GoogleChatNotification extends Notifier implements SimpleBuildStep 
     @DataBoundSetter
     public void setSuppressInfoLoggers(boolean suppressInfoLoggers) {
         this.suppressInfoLoggers = suppressInfoLoggers;
+    }
+
+    @DataBoundSetter
+    public void setSameThreadNotification(boolean sameThreadNotification) {
+        this.sameThreadNotification = sameThreadNotification;
     }
 
     public String getUrl() {
@@ -120,15 +133,67 @@ public class GoogleChatNotification extends Notifier implements SimpleBuildStep 
         return suppressInfoLoggers;
     }
 
+    public boolean isSameThreadNotification() {
+        return sameThreadNotification;
+    }
+
+    public TaskListener getTaskListener() {
+        return taskListener;
+    }
+
+    public void setTaskListener(TaskListener taskListener) {
+        this.taskListener = taskListener;
+    }
+
+    public FilePath getWs() {
+        return ws;
+    }
+
+    public void setWs(FilePath ws) {
+        this.ws = ws;
+    }
+
+    public Run getBuild() {
+        return build;
+    }
+
+    public void setBuild(Run build) {
+        this.build = build;
+    }
+
+    public LogUtil getLogUtil() {
+        return logUtil;
+    }
+
+    public void setLogUtil(LogUtil logUtil) {
+        this.logUtil = logUtil;
+    }
+
+    public ResponseMessageUtil getResponseMessageUtil() {
+        return responseMessageUtil;
+    }
+
+    public void setResponseMessageUtil(ResponseMessageUtil responseMessageUtil) {
+        this.responseMessageUtil = responseMessageUtil;
+    }
+
     @Override
     public boolean perform(AbstractBuild build, Launcher launcher, BuildListener listener) {
-        performAction(listener, null, build);
+
+        this.setBuild(build);
+        this.setWs(null);
+        this.setTaskListener(listener);
+        performAction();
         return true;
     }
 
     @Override
     public void perform(@Nonnull Run<?, ?> run, @Nonnull FilePath workspace, @Nonnull Launcher launcher, @Nonnull TaskListener listener) {
-        performAction(listener, workspace, run);
+
+        this.setBuild(run);
+        this.setWs(workspace);
+        this.setTaskListener(listener);
+        performAction();
     }
 
     @Override
@@ -154,6 +219,7 @@ public class GoogleChatNotification extends Notifier implements SimpleBuildStep 
         private boolean notifyUnstable;
         private boolean notifyBackToNormal;
         private boolean suppressInfoLoggers;
+        private boolean sameThreadNotification;
 
         public Descriptor() {
             load();
@@ -195,6 +261,7 @@ public class GoogleChatNotification extends Notifier implements SimpleBuildStep 
             notifyUnstable = formData.getBoolean("notifyUnstable");
             notifyBackToNormal = formData.getBoolean("notifyBackToNormal");
             suppressInfoLoggers = formData.getBoolean("suppressInfoLoggers");
+            sameThreadNotification = formData.getBoolean("sameThreadNotification");
 
             // ^Can also use req.bindJSON(this, formData);
             save();
@@ -236,12 +303,21 @@ public class GoogleChatNotification extends Notifier implements SimpleBuildStep 
         public boolean isSuppressInfoLoggers() {
             return suppressInfoLoggers;
         }
+
+        public boolean isSameThreadNotification() {
+            return sameThreadNotification;
+        }
     }
 
-    private void performAction(TaskListener listener, FilePath ws, Run build) {
-        LogUtil logUtil = new LogUtil(listener);
-        CommonUtil commonUtil = new CommonUtil(this, listener, ws, build, logUtil);
-        commonUtil.sendNotification();
+    private void performAction() {
+        LogUtil logUtil = new LogUtil(this);
+        this.setLogUtil(logUtil);
+
+        ResponseMessageUtil responseMessageUtil = new ResponseMessageUtil(this);
+        this.setResponseMessageUtil(responseMessageUtil);
+
+        CommonUtil commonUtil = new CommonUtil(this);
+        commonUtil.send();
     }
 
     @Override
@@ -256,6 +332,7 @@ public class GoogleChatNotification extends Notifier implements SimpleBuildStep 
                 ", notifyUnstable=" + notifyUnstable +
                 ", notifyBackToNormal=" + notifyBackToNormal +
                 ", suppressInfoLoggers=" + suppressInfoLoggers +
+                ", sameThreadNotification=" + sameThreadNotification +
                 '}';
     }
 }

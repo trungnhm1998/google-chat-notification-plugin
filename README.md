@@ -31,7 +31,7 @@ This plugin is supported for Jenkins version **2.60.3 or higher**.
 ## How to use it in pipeline script
 
 Use below command
-### googlechatnotification url: 'web hook(s) URL(s)', message: 'message to be sent', notifyAborted: 'true', notifyFailure: 'true', notifyNotBuilt: 'true', notifySuccess: 'true', notifyUnstable: 'true', notifyBackToNormal: 'true', suppressInfoLoggers: 'true'
+### googlechatnotification url: 'web hook(s) URL(s)', message: 'message to be sent', notifyAborted: 'true', notifyFailure: 'true', notifyNotBuilt: 'true', notifySuccess: 'true', notifyUnstable: 'true', notifyBackToNormal: 'true', suppressInfoLoggers: 'true', sameThreadNotification: 'true'
 
 
 ## Please find explanations for each fields as below, usage for all fields remains same for build job and pipeline:
@@ -82,6 +82,10 @@ Use below command
 9. **suppressInfoLoggers**
    - This is an optional boolean parameter. Default value is false.
    - Suppress all info loggers in Jenkins build.
+
+9. **sameThreadNotification**
+   - This is an optional boolean parameter. Default value is false.
+   - This parameter is used to send notification in same thread for a particular job. Here thread_key is a value of JOB_NAME.
 
 
 ## Default behaviour of plugin is to send notifications for all build status unless overridden with true value for above defined build statuses.

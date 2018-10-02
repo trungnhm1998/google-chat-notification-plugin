@@ -45,4 +45,8 @@
         <f:checkbox/>
     </f:entry>
 
+    <f:entry title="Append Notification In Same Thread" field="sameThreadNotification">
+        <f:checkbox/>
+    </f:entry>
+
 </j:jelly>

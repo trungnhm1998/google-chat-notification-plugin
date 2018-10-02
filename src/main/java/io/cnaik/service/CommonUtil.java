@@ -14,6 +14,7 @@ import org.apache.http.HttpStatus;
 import org.apache.http.auth.AuthScope;
 import org.apache.http.auth.UsernamePasswordCredentials;
 import org.apache.http.client.CredentialsProvider;
+import org.apache.http.client.config.RequestConfig;
 import org.apache.http.client.methods.CloseableHttpResponse;
 import org.apache.http.client.methods.HttpPost;
 import org.apache.http.conn.routing.HttpRoutePlanner;
@@ -27,8 +28,6 @@ import org.apache.http.util.EntityUtils;
 import org.jenkinsci.plugins.plaincredentials.StringCredentials;
 import org.jenkinsci.plugins.tokenmacro.TokenMacro;
 
-import java.io.IOException;
-
 public class CommonUtil {
 
     private GoogleChatNotification googleChatNotification;
@@ -36,22 +35,24 @@ public class CommonUtil {
     private FilePath ws;
     private Run build;
     private LogUtil logUtil;
+    private ResponseMessageUtil responseMessageUtil;
 
-    public CommonUtil(GoogleChatNotification googleChatNotification,
-                      TaskListener taskListener,
-                      FilePath ws, Run build, LogUtil logUtil) {
+    private static final int TIME_OUT = 15 * 1000;
+
+    public CommonUtil(GoogleChatNotification googleChatNotification) {
         this.googleChatNotification = googleChatNotification;
-        this.taskListener = taskListener;
-        this.ws = ws;
-        this.build = build;
-        this.logUtil = logUtil;
+        this.taskListener = googleChatNotification.getTaskListener();
+        this.ws = googleChatNotification.getWs();
+        this.build = googleChatNotification.getBuild();
+        this.logUtil = googleChatNotification.getLogUtil();
+        this.responseMessageUtil = googleChatNotification.getResponseMessageUtil();
     }
 
-    public void sendNotification() {
+    public void send() {
 
         boolean sendNotificationFlag = checkPipelineFlag();
 
-        if (printLogEnabled()) {
+        if (logUtil.printLogEnabled()) {
             logUtil.printLog("Send Google Chat Notification condition is : " + sendNotificationFlag);
         }
 
@@ -59,7 +60,23 @@ public class CommonUtil {
             return;
         }
 
-        String json = formResultJSON();
+        String json = "";
+
+        if(false) {
+            json = responseMessageUtil.createCardMessage();
+        } else {
+            json = "{ \"text\": \"" + responseMessageUtil.createTextMessage() + "\"}";
+        }
+
+        if (logUtil.printLogEnabled()) {
+            logUtil.printLog("Final formatted text: " + json);
+        }
+
+        notifyForEachUrl(json);
+    }
+
+    private void notifyForEachUrl(String json) {
+
         String[] urlDetails = googleChatNotification.getUrl().split(",");
         boolean response;
         String[] url;
@@ -87,30 +104,6 @@ public class CommonUtil {
                 logUtil.printLog("Invalid Google Chat Notification URL found: " + urlDetail);
             }
         }
-    }
-
-    private String formResultJSON() {
-
-        String defaultMessage = escapeSpecialCharacter(replaceJenkinsKeywords(googleChatNotification.getMessage()));
-        return "{ 'text': '" + defaultMessage + "'}";
-    }
-
-    private String replaceJenkinsKeywords(String inputString) {
-
-        if(StringUtils.isEmpty(inputString)) {
-            return inputString;
-        }
-
-        try {
-
-            return TokenMacro.expandAll(build, ws, taskListener, inputString, false, null);
-
-        } catch (Exception e) {
-            if(printLogEnabled()) {
-                logUtil.printLog("Exception in Token Macro expansion: " + e);
-            }
-        }
-        return inputString;
     }
 
     private boolean checkWhetherToSend() {
@@ -176,22 +169,9 @@ public class CommonUtil {
         return checkWhetherToSend();
     }
 
-    private String escapeSpecialCharacter(String input) {
-
-        String output = input;
-
-        if(StringUtils.isNotEmpty(output)) {
-            output = output.replace("{", "\\{");
-            output = output.replace("}", "\\}");
-            output = output.replace("'", "\\'");
-        }
-
-        return output;
-    }
-
     private boolean checkIfValidURL(String url) {
         return (StringUtils.isNotEmpty(url)
-                && url.trim().contains("https")
+                && (url.trim().contains("https") || url.trim().contains("http"))
                 && url.trim().contains("?"));
     }
 
@@ -200,10 +180,18 @@ public class CommonUtil {
         if (checkIfValidURL(urlDetail)) {
             try {
 
+                if(googleChatNotification.isSameThreadNotification()) {
+                    String jobName = TokenMacro.expandAll(build, ws, taskListener, "${JOB_NAME}", false, null);
+                    urlDetail = urlDetail + "&threadKey=" + jobName;
+                }
+
                 HttpPost post = new HttpPost(urlDetail);
                 StringEntity stringEntity = new StringEntity(json);
                 post.setEntity(stringEntity);
                 post.setHeader("Content-type", "application/json");
+
+                post.setConfig(getTimeoutConfig());
+
                 CloseableHttpClient client = getHttpClient();
                 CloseableHttpResponse response = client.execute(post);
 
@@ -212,15 +200,13 @@ public class CommonUtil {
                     HttpEntity entity = response.getEntity();
                     String responseString = EntityUtils.toString(entity);
 
-                    if(printLogEnabled()) {
+                    if(logUtil.printLogEnabled()) {
                         logUtil.printLog("Google Chat post may have failed. Response: " + responseString + " , Response Code: " + responseCode);
                     }
                 }
 
-            } catch (IOException e) {
-                if(printLogEnabled()) {
-                    logUtil.printLog("Exception while posting Google Chat message: " + e.getMessage());
-                }
+            } catch (Exception e) {
+                logUtil.printLog("Exception while posting Google Chat message: " + e.getMessage());
             }
             return true;
         }
@@ -244,7 +230,7 @@ public class CommonUtil {
                 String password = proxy.getPassword();
                 // Consider it to be passed if username specified. Sufficient?
 
-                if(printLogEnabled()) {
+                if(logUtil.printLogEnabled()) {
                     logUtil.printLog("Using proxy authentication (user=" + username + "), (host=" + proxy.name + "), (port=" + proxy.port + ")");
                 }
 
@@ -258,7 +244,14 @@ public class CommonUtil {
         return clientBuilder.build();
     }
 
-    public boolean printLogEnabled() {
-        return (logUtil != null && !googleChatNotification.isSuppressInfoLoggers());
+    private RequestConfig getTimeoutConfig() {
+
+        RequestConfig.Builder requestConfig = RequestConfig.custom();
+
+        requestConfig.setConnectTimeout(TIME_OUT);
+        requestConfig.setConnectionRequestTimeout(TIME_OUT);
+        requestConfig.setSocketTimeout(TIME_OUT);
+
+        return requestConfig.build();
     }
 }
