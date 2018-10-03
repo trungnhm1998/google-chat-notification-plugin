@@ -7,6 +7,7 @@ import hudson.model.Run;
 import hudson.model.TaskListener;
 import io.cnaik.GoogleChatNotification;
 import jenkins.model.Jenkins;
+import org.apache.commons.httpclient.util.URIUtil;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.http.HttpEntity;
 import org.apache.http.HttpHost;
@@ -182,7 +183,7 @@ public class CommonUtil {
 
                 if(googleChatNotification.isSameThreadNotification()) {
                     String jobName = TokenMacro.expandAll(build, ws, taskListener, "${JOB_NAME}", false, null);
-                    urlDetail = urlDetail + "&threadKey=" + jobName;
+                    urlDetail = urlDetail + "&threadKey=" + URIUtil.encodePath(jobName);
                 }
 
                 HttpPost post = new HttpPost(urlDetail);

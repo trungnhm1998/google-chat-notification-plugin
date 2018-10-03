@@ -1,3 +1,11 @@
+# 1.4 release notes
+
+### Plugin is supported for Jenkins version 2.60.3 or higher.
+
+Issue:
+
+- Encoding threadKey before appending to chat URL
+
 # 1.3 release notes
 
 ### Plugin is supported for Jenkins version 2.60.3 or higher.
